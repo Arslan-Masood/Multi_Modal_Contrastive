@@ -4,7 +4,7 @@ Muhammad Arslan Masood, Markus Heinonen, Samuel Kaski
 
 [[`ICLR 2025 Workshop LMRL`](https://openreview.net/forum?id=WT7BpLvL6D)]
 
-![Multi-Modal Molecular Representation Learning](https://via.placeholder.com/600x300/4CAF50/FFFFFF?text=Multi-Modal+Molecular+Representation+Learning)
+![Multi-Modal Contrastive Learning Architecture](Triencoder_contrastive.png)
 
 ---
 
