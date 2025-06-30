@@ -2,7 +2,7 @@
 
 Muhammad Arslan Masood, Markus Heinonen, Samuel Kaski
 
-[[`OpenReview Paper`](https://openreview.net/forum?id=WT7BpLvL6D)] [[`ICLR 2025 Workshop LMRL`](https://openreview.net/forum?id=WT7BpLvL6D)]
+[[`ICLR 2025 Workshop LMRL`](https://openreview.net/forum?id=WT7BpLvL6D)]
 
 ![Multi-Modal Molecular Representation Learning](https://via.placeholder.com/600x300/4CAF50/FFFFFF?text=Multi-Modal+Molecular+Representation+Learning)
 
@@ -37,12 +37,6 @@ git clone https://github.com/Arslan-Masood/Multi_Modal_Contrastive.git
 cd Multi_Modal_Contrastive
 conda env create --name multi_modal_contrastive --file environment.yml
 conda activate multi_modal_contrastive
-```
-
-#### Setting OE_LICENSE 
-This step requires the OpenEye license file and is necessary for running molecular featurization. Change `<path>` to the appropriate directory.
-```bash
-export OE_LICENSE=<path>/oe_license.txt
 ```
 
 ## Methodology
@@ -161,7 +155,7 @@ If you use this work in your research, please cite:
 @inproceedings{masood2025multimodal,
     title={Multi-Modal Representation learning for molecules},
     author={Muhammad Arslan Masood and Markus Heinonen and Samuel Kaski},
-    booktitle={ICLR 2025 Workshop on Learning from Multi-Modal and Multi-Task Interactions},
+    booktitle={ICLR 2025 Workshop Learning Meaningful Representations of Life (LMRL)},
     year={2025},
     url={https://openreview.net/forum?id=WT7BpLvL6D}
 }
