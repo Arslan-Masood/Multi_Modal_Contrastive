@@ -26,6 +26,8 @@ wandb/
 *.h5
 models/checkpoints/
 models/saved/
+models/*/
+*.tfevents.*
 
 # Experiment and results
 Figures/
