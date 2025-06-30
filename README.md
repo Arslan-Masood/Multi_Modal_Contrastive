@@ -1,166 +1,182 @@
-# MoCoP: Molecule-Morphology Contrastive Pretraining for Transferable Molecular Representation
+# Multi-Modal Representation Learning for Molecules
 
-Cuong Q. Nguyen, Dante Pertusi, Kim M. Branson
+Muhammad Arslan Masood, Markus Heinonen, Samuel Kaski
 
-[[`GSK AI`](https://gsk.ai/)] [[`Paper`](https://arxiv.org/abs/2305.09790)] [[`Blog`](https://gsk.ai/blogs/mocop-multi-modal-representation-of-molecular-graphs-and-cellular-morphologies/)] [[`BibTeX`](#citing-mocop)]
-![img](https://gsk.ai/media/5u1jw0lk/cuong-blog-figure2_transparent_v2.png?width=781&height=781&mode=max)
+[[`OpenReview Paper`](https://openreview.net/forum?id=WT7BpLvL6D)] [[`ICLR 2025 Workshop LMRL`](https://openreview.net/forum?id=WT7BpLvL6D)]
+
+![Multi-Modal Molecular Representation Learning](https://via.placeholder.com/600x300/4CAF50/FFFFFF?text=Multi-Modal+Molecular+Representation+Learning)
 
 ---
-## Instructions
+
+## Abstract
+
+Molecular representation learning is a fundamental challenge in AI-driven drug discovery, with traditional unimodal approaches relying solely on chemical structures often failing to capture the biological context necessary for accurate toxicity and activity predictions. 
+
+We propose a **multimodal representation learning framework** that integrates molecular data with biological modalities, including:
+- **Morphological features** from Cell Painting assays
+- **Transcriptomic profiles** from the LINCS L1000 dataset
+
+### Key Innovation
+Unlike traditional approaches that require complete triplets (molecule, morphological, genomic), our model only requires **paired data**—(molecule-morphological) and (molecule-genomic)—making it more practical and scalable.
+
+Our approach leverages **contrastive learning** to align molecular representations with biological data, even in the absence of fully paired datasets. We evaluate our framework on the **ChEMBL20 dataset** using linear probing across **1,320 tasks**, demonstrating improvements in predictive performance.
+
+## Features
+
+- ✅ **Multimodal Integration**: Combines chemical structures with biological modalities
+- ✅ **Flexible Pairing**: Works with paired data instead of requiring complete triplets
+- ✅ **Contrastive Learning**: Aligns molecular and biological representations
+- ✅ **Scalable Framework**: Practical for real-world drug discovery applications
+- ✅ **Comprehensive Evaluation**: Tested on 1,320 ChEMBL20 tasks
+
+## Installation and Setup
+
 #### Cloning and setting up your environment
 ```bash
-git clone https://github.com/GSK-AI/mocop.git
-cd mocop
-conda env create --name mocop --file environment.yaml
-source activate mocop
-source .env
+git clone https://github.com/Arslan-Masood/Multi_Modal_Contrastive.git
+cd Multi_Modal_Contrastive
+conda env create --name multi_modal_contrastive --file environment.yml
+conda activate multi_modal_contrastive
 ```
 
 #### Setting OE_LICENSE 
-This step requires the OpenEye license file and is necessary for running src/featurize.py. Change `<path>` to the appropriate directory.
+This step requires the OpenEye license file and is necessary for running molecular featurization. Change `<path>` to the appropriate directory.
 ```bash
 export OE_LICENSE=<path>/oe_license.txt
 ```
 
-## Quickstart
-#### Finetuning pretrained MoCoP on custom datasets with random splits
-Prepare data using the following schema and save as CSV.
+## Methodology
 
-| | smiles | task_1 | task_2 | ... | task_N |
-| :----: | :-------------: | :-------------: | :-------------: | :-------------: | :-------------: |
-|0| <smiles_1>  | y<sub>1,1</sub> | y<sub>1,2</sub> | ... | y<sub>1,N</sub> |
-|1| <smiles_2>  | y<sub>2,1</sub> | y<sub>2,2</sb> | ... | y<sub>2,N</sub> |
-|...| ...  | ...  | ... | ... | ... |
+### 1. Data Modalities
 
-As an example, a dataset with 3 tasks would look something like below.
+Our framework integrates three key data modalities:
+
+- **Chemical Structures**: SMILES representations and molecular graphs
+- **Morphological Features**: Cell Painting assay data capturing cellular morphology changes
+- **Transcriptomic Profiles**: LINCS L1000 gene expression data
+
+### 2. Contrastive Learning Framework
+
+We employ a contrastive learning approach that:
+- Learns shared representations across modalities
+- Handles missing modality pairs gracefully
+- Maximizes agreement between related molecular and biological data
+- Minimizes agreement between unrelated pairs
+
+### 3. Architecture
+
+The model consists of:
+- **Molecular Encoder**: Processes chemical structures using graph neural networks
+- **Morphological Encoder**: Handles Cell Painting features
+- **Transcriptomic Encoder**: Processes gene expression profiles
+- **Projection Heads**: Map each modality to a shared representation space
+
+## Quick Start
+
+#### Training the Multi-Modal Model
+
+Prepare your datasets in the required format:
+
+**Molecular Data (CSV format):**
 ```csv
-,smiles,task_1,task2,task_3
-0,smiles_1,y_11,y_12,y_13
-1,smiles_2,y_21,y_22,y_23
+smiles,compound_id
+CCO,compound_1
+c1ccccc1,compound_2
 ...
 ```
-Run finetuning from a single MoCoP checkpoint stored in `models/` with random splits. Checkpoints and training artifacts are stored at `models/finetune`
-```bash
-DATA_PATH=<Path to generated CSV file>
 
-CKPT_PATH=models/jump_mocop_seed_0_split_0/version_0/checkpoints/best-ckpt-remapped.ckpt
-
-python bin/train.py -cn finetune.yml \
-                        model._args_.0=$CKPT_PATH \
-                        dataloaders.dataset.data_path=$DATA_PATH \
-                        dataloaders.splits=null \
-                        trainer.logger.save_dir=models \
-                        trainer.logger.name=finetune
-```
-#### Finetuning using pre-specified splits
-Prepare your train, validation, and test split CSV files using the following schema. In short, each split file contains a single column `index` that corresponds to the row index of your [data table](#finetuning-pretrained-mocop-on-custom-datasets-with-random-splits) and specifies the set of rows in that split.
-|   | index |
-| :-------------: | :-------------: |
-| 0 | 2 |
-| 1 | 10 |
-| 2 | 32 |
-| ... | ... |
-in CSV format, a split file would look like
+**Morphological Data:**
 ```csv
-,index
-0,2
-1,10
-2,32
-...,...
-```
-We can now finetune our models by replacing `dataloaders.splits=null` with specific split files in the config at runtime.
-```bash
-DATA_PATH=<Path to generated CSV file>
-TRAIN_SPLIT_PATH=<PATH to train split CSV file>
-VAL_SPLIT_PATH=<PATH to validation split CSV file>
-TEST_SPLIT_PATH=<PATH to test split CSV file>
-
-CKPT_PATH=models/jump_mocop_seed_0_split_0/version_0/checkpoints/best-ckpt-remapped.ckpt
-
-python bin/train.py -cn finetune.yml \
-                        model._args_.0=$CKPT_PATH \
-                        dataloaders.dataset.data_path=$DATA_PATH \
-                        dataloaders.splits.train=$TRAIN_SPLIT_PATH \
-                        dataloaders.splits.val=$VAL_SPLIT_PATH \
-                        dataloaders.splits.test=$TEST_SPLIT_PATH \
-                        trainer.logger.save_dir=models \
-                        trainer.logger.name=finetune
+compound_id,feature_1,feature_2,...,feature_n
+compound_1,0.123,0.456,...,0.789
+compound_2,0.234,0.567,...,0.890
+...
 ```
 
-#### Finetuning using all MoCoP checkpoints
-All MoCoP checkpoints are stored in `models/` and can be accessedby looping over them.
-```bash
-DATA_PATH=<Path to generated CSV file>
-
-CKPTS=(
-    models/jump_mocop_seed_0_split_0/version_0/checkpoints/best-ckpt-remapped.ckpt
-    models/jump_mocop_seed_1_split_1/version_0/checkpoints/best-ckpt-remapped.ckpt
-    models/jump_mocop_seed_2_split_2/version_0/checkpoints/best-ckpt-remapped.ckpt
-)
-
-for CKPT_PATH in ${CKPTS[@]}; do
-    python bin/train.py -cn finetune.yml \
-                            model._args_.0=$CKPT_PATH \
-                            dataloaders.dataset.data_path=$DATA_PATH \
-                            dataloaders.splits=null \
-                            trainer.logger.save_dir=models \
-                            trainer.logger.name=finetune
-done
-```
-## Reproducing experiments
-Set the necessary environment variables
-| Variable  | Description |
-| ------------- | ------------- |
-| `$CONDA_ENV`  | Name of [conda environment](#cloning-and-setting-up-your-environment) |
-| `$DATA_DIR`  | Directory with processed JUMP-CP data   |
-| `$SAVE_DIR`  | Output directory for model training  |
-
-Download and preprocess ChEMBL20 and JUMP-CP compound data
-```bash
-source data/download_and_preprocess.sh $DATA_DIR $CONDA_ENV
-```
-Pretraining on JUMP-CP
-```bash
-# MoCoP
-source exp/train_jump_mocop.sh $SAVE_DIR $DATA_DIR $CONDA_ENV
-# Multitask
-source exp/train_jump_multitask.sh $SAVE_DIR $DATA_DIR $CONDA_ENV
-```
-Remapping model `state_dict` for finetuning
-```bash
-source exp/remap_state_dict_mocop.sh $SAVE_DIR
-source exp/remap_state_dict_multitask.sh $SAVE_DIR
-```
-Finetuning on ChEMBL20
-```bash
-# Training from scratch
-source exp/train_chembl20_fromscratch.sh $SAVE_DIR $CONDA_ENV
-# MoCoP finetune
-source exp/train_chembl20_mocop.sh $SAVE_DIR $CONDA_ENV
-# MoCoP linear probe
-source exp/train_chembl20_mocop_linear.sh $SAVE_DIR $CONDA_ENV
-# Multitask finetune
-source exp/train_chembl20_multitask.sh $SAVE_DIR $CONDA_ENV
+**Transcriptomic Data:**
+```csv
+compound_id,gene_1,gene_2,...,gene_m
+compound_1,1.23,2.34,...,3.45
+compound_2,2.34,3.45,...,4.56
+...
 ```
 
-Finetuning on ChEMBL20 using MoCoP checkpoints in `models/`
+#### Training Command
 ```bash
-# MoCoP finetune
-source exp/train_chembl20_mocop.sh models $CONDA_ENV
-# MoCoP linear probe
-source exp/train_chembl20_mocop_linear.sh models $CONDA_ENV
+python bin/train.py \
+    --config configs/multi_modal_config.yml \
+    --molecular_data path/to/molecular_data.csv \
+    --morphological_data path/to/morphological_data.csv \
+    --transcriptomic_data path/to/transcriptomic_data.csv \
+    --output_dir results/
+```
+
+#### Fine-tuning on Downstream Tasks
+```bash
+python bin/train.py \
+    --config configs/finetune_config.yml \
+    --pretrained_model path/to/pretrained_model.ckpt \
+    --task_data path/to/chembl20_tasks.csv \
+    --output_dir results/finetune/
+```
+
+## Reproducing Paper Results
+
+### Environment Setup
+Set the necessary environment variables:
+```bash
+export DATA_DIR=/path/to/processed/data
+export SAVE_DIR=/path/to/model/outputs
+export CONDA_ENV=multi_modal_contrastive
+```
+
+### Data Preparation
+```bash
+# Download and preprocess ChEMBL20, Cell Painting, and LINCS data
+bash data/download_and_preprocess.sh $DATA_DIR $CONDA_ENV
+```
+
+### Training
+```bash
+# Multi-modal contrastive pretraining
+bash exp/train_multimodal_contrastive.sh $SAVE_DIR $DATA_DIR $CONDA_ENV
+
+# ChEMBL20 evaluation with linear probing
+bash exp/evaluate_chembl20_linear.sh $SAVE_DIR $DATA_DIR $CONDA_ENV
+```
+
+## Results
+
+Our multi-modal approach demonstrates:
+- **Improved performance** on ChEMBL20 tasks compared to unimodal baselines
+- **Better generalization** across diverse molecular property prediction tasks
+- **Robust representations** that capture both chemical and biological context
+- **Scalable training** without requiring complete multimodal triplets
+
+## Citation
+
+If you use this work in your research, please cite:
+
+```bibtex
+@inproceedings{masood2025multimodal,
+    title={Multi-Modal Representation learning for molecules},
+    author={Muhammad Arslan Masood and Markus Heinonen and Samuel Kaski},
+    booktitle={ICLR 2025 Workshop on Learning from Multi-Modal and Multi-Task Interactions},
+    year={2025},
+    url={https://openreview.net/forum?id=WT7BpLvL6D}
+}
 ```
 
 ## License
-MoCoP code is released under the [GPLv3 license](LICENSE-GPLv3) and MoCoP weights are released under the [CC-BY-NC-ND 4.0 license](LICENSE-CC-BY-NC-ND-4.0).
 
+This project is released under the [GPLv3 license](LICENSE-GPLv3) for code and [CC-BY-NC-ND 4.0 license](LICENSE-CC-BY-NC-ND-4.0) for model weights.
 
-## Citing MoCoP
-```
-@misc{nguyen2023mocop,
-	title={Molecule-Morphology Contrastive Pretraining for Transferable Molecular Representation},
-	author={Nguyen, Cuong Q. and Pertusi, Dante and Branson, Kim M.},
-	journal={arXiv:2305.09790},
-	year={2023},
-}
-```
+## Contact
+
+For questions and collaborations, please contact:
+- Muhammad Arslan Masood (arslan.masood@aalto.fi)
+- Issues and discussions: [GitHub Issues](https://github.com/Arslan-Masood/Multi_Modal_Contrastive/issues)
+
+---
+
+**Keywords:** Multi-Modal, Representation learning, drug design, Contrastive learning, Cell Painting, LINCS L1000, ChEMBL20
