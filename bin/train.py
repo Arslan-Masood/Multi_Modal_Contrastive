@@ -1,3 +1,6 @@
+import sys 
+sys.path.insert(1, '/scratch/work/masooda1/Multi_Modal_Contrastive/mocop')
+
 import os
 from typing import Dict, Union
 
@@ -13,7 +16,7 @@ import model
 from training import train
 
 
-@hydra.main(config_path="../configs", config_name="train.yml")
+@hydra.main(config_path="/scratch/work/masooda1/Multi_Modal_Contrastive/configs", config_name="train.yml")
 def main(cfg: DictConfig):
     os.chdir(hydra.utils.get_original_cwd())
     best = train(cfg)

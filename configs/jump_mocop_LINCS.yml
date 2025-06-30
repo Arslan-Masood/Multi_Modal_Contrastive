@@ -2,18 +2,19 @@ seed: 0
 dataloaders:
   _target_: training.build_dataloaders
   dataset:
-    _target_: dataset.DualInputGraphDatasetJUMP
-    data_path: 
+    _target_: dataset.TripleInputGraphDatasetJUMP
+    data_path: /scratch/work/masooda1/Multi_Modal_Contrastive/data/jump_data/cell_fetures_with_smiles.parquet
+    genomic_data_path: /scratch/cs/pml/AI_drug/molecular_representation_learning/LINCS/landmark_cmp_data_U2OS_single_dose_time.parquet
     pad_length: 250
   splits:
-    train: data/jump/jump-compound-split-0-train.csv
-    val: data/jump/jump-compound-split-0-val.csv
-    test: data/jump/jump-compound-split-0-test.csv
+    train: /scratch/work/masooda1/Multi_Modal_Contrastive/data/LINCS/JUMP-LINCS-compound-split-0-train.csv
+    val: /scratch/work/masooda1/Multi_Modal_Contrastive/data/LINCS/JUMP-LINCS-compound-split-0-val.csv
+    test: /scratch/work/masooda1/Multi_Modal_Contrastive/data/jump/jump-compound-split-0-test.csv
   batch_size: 512
   num_workers: 48
   pin_memory: true
 model:
-  _target_: model.DualInputEncoder
+  _target_: model.TripleInputEncoder
   encoder_a:
     _target_: model.GatedGraphNeuralNetwork
     n_edge: 1
@@ -24,7 +25,15 @@ model:
     p_dropout: 0.1
   encoder_b:
     _target_: model.MultiLayerPerceptron
-    num_input_features: 3479
+    num_input_features: 3479  # morphological features
+    hidden_layer_dimensions:
+    - 512
+    - 256
+    - 128
+    p_dropout: 0.1
+  encoder_c:
+    _target_: model.MultiLayerPerceptron
+    num_input_features: 978   # genomic features
     hidden_layer_dimensions:
     - 512
     - 256
@@ -53,7 +62,7 @@ trainer:
   precision: 32
   max_epochs: 1000
   min_epochs: 50
-  fast_dev_run: false
+  fast_dev_run: False
   check_val_every_n_epoch: 2
   callbacks:
   - _target_: pytorch_lightning.callbacks.early_stopping.EarlyStopping
@@ -73,9 +82,10 @@ trainer:
     id: 
     mode: offline
 test_model:
-  _target_: model.DualInputEncoder
+  _target_: model.TripleInputEncoder
   encoder_a: ${model.encoder_a}
   encoder_b: ${model.encoder_b}
+  encoder_c: ${model.encoder_c}
   dim: ${model.dim}
   supervised_head_dim: ${model.supervised_head_dim}
   non_lin_proj: ${model.non_lin_proj}

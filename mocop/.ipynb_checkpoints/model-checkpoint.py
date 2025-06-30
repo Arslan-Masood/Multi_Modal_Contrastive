@@ -12,27 +12,6 @@ from layers import GatedGraphConvolution
 from metrics import accuracy
 from steps import _supervised_metric, _validation_epoch_end, _validation_epoch_end_all_cell_lines
 
-class Hidden_block(nn.Module):
-    def __init__(self, input_dim, hidden_dim, norm_type=None, use_skip_connection=True):
-        super(Hidden_block, self).__init__()
-        self.layer1 = nn.Linear(input_dim, hidden_dim)
-        self.use_skip_connection = use_skip_connection
-
-        if norm_type == "batchnorm":
-            self.norm = nn.BatchNorm1d(hidden_dim)
-        elif norm_type == "layernorm":
-            self.norm = nn.LayerNorm(hidden_dim)
-        else:
-            self.norm = None
-
-    def forward(self, x1):
-        x2 = self.layer1(x1)
-        if self.norm is not None:
-            x2 = self.norm(x2)
-        if self.use_skip_connection:
-            x2 = x2 + x1
-        return x2
-    
 
 class MultiLayerPerceptron(nn.Module):
     """Standard multi-layer perceptron with non-linearity and potentially dropout.
@@ -58,11 +37,6 @@ class MultiLayerPerceptron(nn.Module):
         hidden_layer_dimensions: Optional[List[int]] = None,
         nonlin: Union[str, nn.Module] = "ReLU",
         p_dropout: float = 0.0,
-        norm_type: Optional[str] = None,
-        use_hidden_block: bool = False,
-        n_hidden_blocks: int = 1,
-        hidden_block_dim: int = 128,
-        use_skip_connection: bool = True,
     ):
         super(MultiLayerPerceptron, self).__init__()
         if hidden_layer_dimensions is None:
@@ -72,21 +46,16 @@ class MultiLayerPerceptron(nn.Module):
         if isinstance(nonlin, str):
             nonlin = getattr(torch.nn, nonlin)()
 
-        self.encoder_nonlin = nonlin
-        self.encoder_dropout = nn.Dropout(p=p_dropout)
-        self.n_hidden_blocks = n_hidden_blocks
-
         hidden_layer_dimensions = [dim for dim in hidden_layer_dimensions if dim != 0]
         layer_inputs = [num_input_features] + hidden_layer_dimensions
         modules = []
         for i in range(len(hidden_layer_dimensions)):
-            modules.append(nn.Dropout(p=p_dropout))
-            modules.append(nn.Linear(layer_inputs[i], layer_inputs[i + 1]))
-            # Add normalization if requested
-            if norm_type == "batchnorm":
-                modules.append(nn.BatchNorm1d(layer_inputs[i + 1]))
-            elif norm_type == "layernorm":
-                modules.append(nn.LayerNorm(layer_inputs[i + 1]))
+            modules.extend(
+                [
+                    nn.Dropout(p=p_dropout),
+                    nn.Linear(layer_inputs[i], layer_inputs[i + 1]),
+                ]
+            )
             if i < (len(hidden_layer_dimensions) - 1):
                 modules.append(nonlin)
 
@@ -104,40 +73,14 @@ class MultiLayerPerceptron(nn.Module):
             self.final_dropout = nn.Dropout(p=p_dropout)
             self.final = nn.Linear(layer_inputs[-1], output_size)
 
-        self.use_hidden_block = use_hidden_block
-        if use_hidden_block:
-            self.hidden_blocks = nn.ModuleList([
-                Hidden_block(
-                    input_dim=hidden_block_dim,
-                    hidden_dim=hidden_block_dim,
-                    norm_type=norm_type,
-                    use_skip_connection=use_skip_connection
-                )
-                for _ in range(self.n_hidden_blocks)
-            ])
-
     def embed(self, inputs: torch.Tensor) -> torch.Tensor:
         """Run forward pass up to penultimate layer"""
         outputs = self.module(inputs)
         return outputs
 
     def forward(self, x_a: torch.Tensor, **kwargs) -> torch.Tensor:
-        # Apply MLP
         outputs = self.module(x_a)
-        if self.use_hidden_block:
-            # Apply non-linearity and dropout to the final output
-            outputs = self.encoder_nonlin(outputs)
-            outputs = self.encoder_dropout(outputs)
-            # Apply hidden blocks
-            for i, block in enumerate(self.hidden_blocks):
-                outputs = block(outputs)
-                # Apply activation and dropout between blocks, but not after the last one
-                if i < self.n_hidden_blocks - 1:
-                    outputs = self.encoder_nonlin(outputs)
-                    outputs = self.encoder_dropout(outputs)
-
         if self.has_final_layer:
-            # Apply non-linearity and dropout to the final output
             outputs = self.final_nonlin(outputs)
             outputs = self.final_dropout(outputs)
             outputs = self.final(outputs)
@@ -1069,9 +1012,9 @@ class CellLineTripleInputEncoder(pl.LightningModule):
                 acc_ak = acc_ak.cpu().item()
                 acc_bk = acc_bk.cpu().item()
                 logs.update({
-                    f"morphological_acc_a{suffix}": acc_ak,
-                    f"morphological_acc_b{suffix}": acc_bk,
-                    f"morphological_acc{suffix}": (acc_ak + acc_bk) / 2,
+                    f"acc_a{suffix}": acc_ak,
+                    f"acc_b{suffix}": acc_bk,
+                    f"acc{suffix}": (acc_ak + acc_bk) / 2,
                 })
         
         # 2. Genomic accuracies (averaged across all cell lines)
@@ -1135,54 +1078,22 @@ class CellLineTripleInputEncoder(pl.LightningModule):
         )
         for k, v in batch_dictionary["log"].items():
             self.log(k, v, on_step=False, on_epoch=True)
-
-        # Store the first training batch, to use for visualization
-        if self.sample_train_batch is None:
-            self.sample_train_batch = train_batch
-
         return batch_dictionary
 
     def validation_step(self, val_batch, batch_idx, dataloader_idx=None):
-        if self.sample_val_batch is None:
-            self.sample_val_batch = val_batch
-        batch_dictionary = self._step(
+        outputs =  self._step(
             batch=val_batch,
             batch_idx=batch_idx,
             step_name="val",
             dataloader_idx=dataloader_idx,
         )
-        for k, v in batch_dictionary["log"].items():
-            self.log(k, v, on_step=False, on_epoch=True)
-        return batch_dictionary
-    
-    def on_train_epoch_start(self):
-        print("on_train_epoch_start")
-        """Record the start time of each training epoch."""
-        self.epoch_start_time = torch.cuda.Event(enable_timing=True)
-        self.epoch_start_time.record()
+        self.validation_step_outputs = getattr(self, 'validation_step_outputs', [])
+        self.validation_step_outputs.append(outputs)
+        return outputs
 
-        # Clear previous outputs and reset the sample batch."""
-        self.sample_train_batch = None # Reset sample batch
+    def validation_epoch_start(self):
+        self.validation_step_outputs = []
 
-    def on_train_epoch_end(self):
-        print("on_train_epoch_end")
-        """Log learning rate and epoch time at the end of training epoch."""
-        # Record end time and calculate duration
-        epoch_end_time = torch.cuda.Event(enable_timing=True)
-        epoch_end_time.record()
-        torch.cuda.synchronize()
-        epoch_time_min = self.epoch_start_time.elapsed_time(epoch_end_time) / 60000.0  # Convert to minutes
-
-        # Log metrics
-        self.log("learning_rate_epoch", self.optimizer.param_groups[0]["lr"], on_step=False, on_epoch=True)
-        self.log("train/epoch_time_min", epoch_time_min, on_step=False, on_epoch=True)
-
-    def on_validation_epoch_start(self):
-        print("on_validation_epoch_start")
-        self.sample_val_batch = None # Reset sample batch
-
-
-    #def on_validation_epoch_end(self):
-    #    print("on_validation_epoch_end")
-    #    _validation_epoch_end_all_cell_lines(self, self.validation_step_outputs)
+    def on_validation_epoch_end(self):
+            _validation_epoch_end_all_cell_lines(self, self.validation_step_outputs)
 

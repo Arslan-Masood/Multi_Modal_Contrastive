@@ -31,11 +31,13 @@ def test(cfg: Union[Dict, DictConfig]) -> nn.Module:
     test_metrics = trainer.validate(
         model=model, dataloaders=dataloaders["test"], verbose=True
     )
-    if "test_model_ckpt" in cfg:
-        test_dir = os.path.dirname(cfg.test_model_ckpt)
-    else:
-        test_dir = os.path.dirname(cfg.test_model._args_[0])
-    test_path = os.path.join(test_dir, "test_metrics.json")
+    
+    # Use the specified test results directory and filename
+    test_dir = cfg.test_results_dir
+    test_filename = cfg.test_results_filename
+    
+    os.makedirs(test_dir, exist_ok=True)  # Ensure the directory exists
+    test_path = os.path.join(test_dir, f"{test_filename}.json")
     test_str = json.dumps(test_metrics[0], indent=4)
     with open(test_path, "w") as f:
         f.write(test_str)

@@ -1,0 +1,96 @@
+seed: 0
+dataloaders:
+  _target_: training.build_dataloaders
+  dataset:
+    _target_: dataset.CellLineTripleInputGraphDatasetJUMP
+    data_path: /scratch/work/masooda1/Multi_Modal_Contrastive/data/dummy_data/normalized_cell_fetures_with_smiles_2000.parquet
+    genomic_data_path: /scratch/work/masooda1/Multi_Modal_Contrastive/data/dummy_data/landmark_cmp_data_min1000compounds_all_measurements_test.parquet
+    pad_length: 250
+  splits:
+    train: /scratch/work/masooda1/Multi_Modal_Contrastive/data/dummy_data/jump-compound-split-0-train.csv
+    val: /scratch/work/masooda1/Multi_Modal_Contrastive/data/dummy_data/jump-compound-split-0-val.csv
+    test: /scratch/work/masooda1/Multi_Modal_Contrastive/data/dummy_data/jump-compound-split-0-test.csv
+  batch_size: 64
+  num_workers: 12
+  pin_memory: true
+
+model:
+  _target_: model.CellLineTripleInputEncoder
+  encoder_a:
+    _target_: model.GatedGraphNeuralNetwork
+    n_edge: 1
+    in_dim: 75
+    n_conv: 6
+    fc_dims:
+    - 1024
+    p_dropout: 0.1
+  encoder_b:
+    _target_: model.MultiLayerPerceptron
+    num_input_features: 3479  # morphological features
+    hidden_layer_dimensions:
+    - 512
+    - 256
+    - 128
+    p_dropout: 0.1
+    norm_type: null
+    use_hidden_block: false
+    n_hidden_blocks: 0
+    use_skip_connection: false
+  encoder_c:
+    _target_: model.MultiLayerPerceptron
+    num_input_features: 978   # genomic features
+    hidden_layer_dimensions:
+    - 256
+    - 128
+    p_dropout: 0.1
+  supervised_head_dim:
+  - 202
+  non_lin_proj: true
+  dim: 128
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 0.001
+scheduler:
+  _target_: cosine_annealing_warmup.scheduler.CosineAnnealingWarmupRestarts
+  first_cycle_steps: 1000
+  cycle_mult: 1
+  max_lr: 0.001
+  min_lr: 1.0e-08
+  warmup_steps: 50
+scheduler_config:
+  monitor: val/loss
+trainer:
+  _target_: pytorch_lightning.Trainer
+  gpus: 1
+  num_nodes: 1
+  precision: 32
+  max_epochs: 2000
+  min_epochs: 500
+  fast_dev_run: false
+  check_val_every_n_epoch: 2
+  callbacks:
+  - _target_: pytorch_lightning.callbacks.early_stopping.EarlyStopping
+    monitor: val/morphological_acc
+    mode: max
+    patience: 500
+  - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    monitor: val/morphological_acc
+    mode: max
+    save_top_k: 2
+    dirpath:
+  - _target_: training.TrainingMonitor
+  logger:
+    _target_: pytorch_lightning.loggers.NeptuneLogger
+    api_key: "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI4ODlkMzRkMC1jYmM1LTQ5MjctOTBiMi1hYWQxNDg0ZGIxODMifQ=="
+    project: 
+    name: 
+    log_model_checkpoints: False
+test_model:
+  _target_: model.CellLineTripleInputEncoder
+  encoder_a: ${model.encoder_a}
+  encoder_b: ${model.encoder_b}
+  encoder_c: ${model.encoder_c}
+  dim: ${model.dim}
+  supervised_head_dim: ${model.supervised_head_dim}
+  non_lin_proj: ${model.non_lin_proj}
+test_model_ckpt: 

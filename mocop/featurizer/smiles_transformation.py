@@ -1,9 +1,10 @@
 import functools
-
 import numpy as np
+from rdkit import Chem
+from rdkit.Chem import AllChem, inchi
 from openeye import oechem, oegraphsim
 
-from featurizer.molgraph import MolGraph
+from featurizer.molgraph_rdkit import MolGraph
 
 
 @functools.lru_cache(maxsize=None)
@@ -11,24 +12,21 @@ def smiles2fp(
     smiles: str,
     numbits=1024,
     minradius=0,
-    maxradiu=2,
-    atype=oegraphsim.OEFPAtomType_DefaultCircularAtom,
-    btype=oegraphsim.OEFPBondType_DefaultCircularBond,
+    maxradius=2,
 ):
-    mol = oechem.OEGraphMol()
-    oechem.OESmilesToMol(mol, smiles)
-    fp = oegraphsim.OEFingerPrint()
-    oegraphsim.OEMakeCircularFP(
-        fp,
-        mol,
-        numbits,
-        minradius,
-        maxradiu,
-        atype,
-        btype,
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        raise ValueError(f"Invalid SMILES string: {smiles}")
+    
+    fp = AllChem.GetMorganFingerprintAsBitVect(
+        mol, 
+        maxradius, 
+        nBits=numbits, 
+        useFeatures=False,
+        useChirality=True,
     )
-    fp_vec = [fp.IsBitOn(i) for i in range(fp.GetSize())]
-    return np.array(fp_vec).astype(float)
+    
+    return np.array(fp)
 
 
 @functools.lru_cache(maxsize=None)
@@ -41,13 +39,16 @@ def smiles2graph(smiles, adj_type="norm_id_adj_mat", explicit_H_node=None, **kwa
 
 @functools.lru_cache(maxsize=None)
 def smiles2inchikey(smiles: str):
-    mol = oechem.OEGraphMol()
-    oechem.OESmilesToMol(mol, smiles)
-    return oechem.OEMolToSTDInChIKey(mol)
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        raise ValueError(f"Invalid SMILES string: {smiles}")
+    return Chem.MolToInchiKey(mol)
 
 
 @functools.lru_cache(maxsize=None)
-def inchi2smiles(inchikey: str):
-    mol = oechem.OEGraphMol()
-    oechem.OEInChIToMol(mol, inchikey)
-    return oechem.OEMolToSmiles(mol)
+
+def inchi2smiles(inchi_str: str):
+    mol = Chem.inchi.MolFromInchi(inchi_str)
+    if mol is None:
+        raise ValueError(f"Invalid InChI string: {inchi_str}")
+    return Chem.MolToSmiles(mol)

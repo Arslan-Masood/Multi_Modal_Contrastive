@@ -39,23 +39,28 @@ trainer:
   check_val_every_n_epoch: 1
   callbacks:
   - _target_: pytorch_lightning.callbacks.early_stopping.EarlyStopping
-    monitor: val/auprc
+    monitor: val/auprc_mean
     mode: max
     patience: 20
   - _target_: pytorch_lightning.callbacks.ModelCheckpoint
-    monitor: val/auprc
+    monitor: val/auprc_mean
     mode: max
     save_top_k: 2
+    dirpath:
   logger:
-    _target_: pytorch_lightning.loggers.TensorBoardLogger
-    save_dir: ./
-    name: chembl20_mocop_linear
+    _target_: pytorch_lightning.loggers.WandbLogger
+    project:
+    save_dir: 
+    name: 
+    id: 
 test_model:
   _target_: model.LightningGGNN.load_from_checkpoint
-  _args_:
-  - 
+  checkpoint_path: 
   n_edge: ${model.n_edge}
   in_dim: ${model.in_dim}
   n_conv: ${model.n_conv}
   fc_dims: ${model.fc_dims}
   p_dropout: ${model.p_dropout}
+
+test_results_dir:  # This will be overridden by the command line argument
+test_results_filename:  # This will be overridden by the command line argument

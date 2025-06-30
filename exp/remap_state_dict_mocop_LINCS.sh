@@ -18,7 +18,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Define checkpoint paths
-CKPT_PATH=${SAVE_DIR}/jump_mocop_seed_${SEED}_split_${SPLIT}/checkpoints/best_ckpt.ckpt
+CKPT_PATH=${SAVE_DIR}/jump_mocop_lincs_seed_${SEED}_split_${SPLIT}/checkpoints/best_ckpt.ckpt
 OUTPUT_PATH=$(dirname $CKPT_PATH)/best-ckpt-remapped.ckpt
 
 echo "Remapping state dict for SEED=${SEED}, SPLIT=${SPLIT}"
