@@ -38,6 +38,20 @@ conda env create --name multi_modal_contrastive --file environment.yml
 conda activate multi_modal_contrastive
 ```
 
+#### Data Version Control (DVC) Setup
+This project uses DVC for managing large datasets and model files. See [DVC_SETUP.md](DVC_SETUP.md) for detailed instructions.
+
+```bash
+# Install DVC
+pip install dvc[all]
+
+# Initialize DVC (first time only)
+dvc init
+
+# Pull data from remote storage
+dvc pull
+```
+
 ## Methodology
 
 ### 1. Data Modalities
