@@ -4,9 +4,8 @@ Muhammad Arslan Masood, Markus Heinonen, Samuel Kaski
 
 [[`ICLR 2025 Workshop LMRL`](https://openreview.net/forum?id=WT7BpLvL6D)]
 <p align="center">
-  <img src="Triencoder_contrastive.png" width="50%" alt="Multi-Modal Contrastive Learning Architecture"/>
+  <img src="Triencoder_contrastive.png" width="100%" alt="Multi-Modal Contrastive Learning Architecture"/>
 </p>
----
 
 ## Abstract
 
